@@ -1,0 +1,56 @@
+name: Build AudioGridder Windows Server
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/wine-plugin-editor-bounds
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  build-server:
+    runs-on: windows-2022
+    steps:
+      - name: Check out AudioGridder (including JUCE)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Check out prebuilt Windows x64 dependencies
+        uses: actions/checkout@v4
+        with:
+          repository: apohl79/audiogridder-deps
+          ref: main
+          path: audiogridder-deps
+          sparse-checkout: |
+            windows-x86_64
+          sparse-checkout-cone-mode: true
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S . -B build-windows-x86_64 -A x64 `
+            "-DAG_DEPS_ROOT=$env:GITHUB_WORKSPACE/audiogridder-deps/windows-x86_64" `
+            -DBoost_COMPILER=vc142 `
+            -DAG_WITH_PLUGIN=OFF `
+            -DAG_WITH_SERVER=ON `
+            -DAG_ENABLE_CODE_SIGNING=OFF `
+            -DAG_ENABLE_DEBUG_COPY_STEP=OFF
+
+      - name: Build AudioGridderServer
+        run: cmake --build build-windows-x86_64 --config RelWithDebInfo --target AudioGridderServer --parallel
+
+      - name: Upload server build
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudioGridderServer-Windows-x64
+          path: |
+            build-windows-x86_64/bin/AudioGridderServer.exe
+            build-windows-x86_64/bin/AudioGridderServer.pdb
+          if-no-files-found: error
+          retention-days: 14

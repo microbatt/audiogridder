@@ -9,6 +9,7 @@
 #include "ProcessorChain.hpp"
 #include "App.hpp"
 #include "Server.hpp"
+#include "WindowHelper.hpp"
 
 namespace e47 {
 
@@ -1005,7 +1006,25 @@ juce::Rectangle<int> Processor::getScreenBounds() {
         runOnMsgThreadSync([&] {
             if (auto p = getPlugin(m_activeWindowChannel)) {
                 if (auto* e = p->getActiveEditor()) {
-                    ret = e->getScreenBounds();
+                    const auto juceBounds = e->getScreenBounds();
+                    const auto nativeBounds = WindowHelper::getWindowScreenBounds(e);
+
+                    // Under Wine, JUCE can return a non-empty but incorrect screen rectangle.
+                    // Prefer the validated native HWND rectangle whenever it is available.
+                    ret = nativeBounds.isEmpty() ? juceBounds : nativeBounds;
+
+                    if (!m_hasLoggedScreenBounds || m_lastLoggedScreenBounds != ret) {
+                        logln("editor screen bounds: JUCE "
+                              << juceBounds.getX() << "x" << juceBounds.getY() << " "
+                              << juceBounds.getWidth() << "x" << juceBounds.getHeight()
+                              << ", native "
+                              << nativeBounds.getX() << "x" << nativeBounds.getY() << " "
+                              << nativeBounds.getWidth() << "x" << nativeBounds.getHeight()
+                              << ", using "
+                              << (nativeBounds.isEmpty() ? "JUCE" : "native"));
+                        m_lastLoggedScreenBounds = ret;
+                        m_hasLoggedScreenBounds = true;
+                    }
                 }
             }
         });
