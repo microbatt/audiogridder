@@ -1006,19 +1006,24 @@ juce::Rectangle<int> Processor::getScreenBounds() {
         runOnMsgThreadSync([&] {
             if (auto p = getPlugin(m_activeWindowChannel)) {
                 if (auto* e = p->getActiveEditor()) {
-                    ret = e->getScreenBounds();
-                    if (ret.isEmpty()) {
-                        // Some Windows plugin editors hosted under Wine do not report JUCE screen bounds.
-                        // Use the native top-level window rectangle as a fallback when it is available.
-                        auto nativeBounds = WindowHelper::getWindowScreenBounds(e);
-                        if (!nativeBounds.isEmpty()) {
-                            logln("JUCE editor screen bounds are empty; using native window bounds "
-                                  << nativeBounds.getX() << "x" << nativeBounds.getY() << " "
-                                  << nativeBounds.getWidth() << "x" << nativeBounds.getHeight());
-                            ret = nativeBounds;
-                        } else {
-                            logln("JUCE editor and native window screen bounds are both empty");
-                        }
+                    const auto juceBounds = e->getScreenBounds();
+                    const auto nativeBounds = WindowHelper::getWindowScreenBounds(e);
+
+                    // Under Wine, JUCE can return a non-empty but incorrect screen rectangle.
+                    // Prefer the validated native HWND rectangle whenever it is available.
+                    ret = nativeBounds.isEmpty() ? juceBounds : nativeBounds;
+
+                    if (!m_hasLoggedScreenBounds || m_lastLoggedScreenBounds != ret) {
+                        logln("editor screen bounds: JUCE "
+                              << juceBounds.getX() << "x" << juceBounds.getY() << " "
+                              << juceBounds.getWidth() << "x" << juceBounds.getHeight()
+                              << ", native "
+                              << nativeBounds.getX() << "x" << nativeBounds.getY() << " "
+                              << nativeBounds.getWidth() << "x" << nativeBounds.getHeight()
+                              << ", using "
+                              << (nativeBounds.isEmpty() ? "JUCE" : "native"));
+                        m_lastLoggedScreenBounds = ret;
+                        m_hasLoggedScreenBounds = true;
                     }
                 }
             }
