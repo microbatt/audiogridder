@@ -9,6 +9,7 @@
 #include "ProcessorChain.hpp"
 #include "App.hpp"
 #include "Server.hpp"
+#include "WindowHelper.hpp"
 
 namespace e47 {
 
@@ -1006,6 +1007,19 @@ juce::Rectangle<int> Processor::getScreenBounds() {
             if (auto p = getPlugin(m_activeWindowChannel)) {
                 if (auto* e = p->getActiveEditor()) {
                     ret = e->getScreenBounds();
+                    if (ret.isEmpty()) {
+                        // Some Windows plugin editors hosted under Wine do not report JUCE screen bounds.
+                        // Use the native top-level window rectangle as a fallback when it is available.
+                        auto nativeBounds = WindowHelper::getWindowScreenBounds(e);
+                        if (!nativeBounds.isEmpty()) {
+                            logln("JUCE editor screen bounds are empty; using native window bounds "
+                                  << nativeBounds.getX() << "x" << nativeBounds.getY() << " "
+                                  << nativeBounds.getWidth() << "x" << nativeBounds.getHeight());
+                            ret = nativeBounds;
+                        } else {
+                            logln("JUCE editor and native window screen bounds are both empty");
+                        }
+                    }
                 }
             }
         });
