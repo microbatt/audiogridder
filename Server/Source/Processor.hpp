@@ -220,6 +220,8 @@ class Processor : public LogTagDelegate, public std::enable_shared_from_this<Pro
     AudioRingBuffer<double> m_bypassBufferD;
     int m_lastKnownLatency = 0;
     Point<int> m_lastPosition = {0, 0};
+    juce::Rectangle<int> m_lastLoggedScreenBounds;
+    bool m_hasLoggedScreenBounds = false;
 
     enum FormatType { VST, VST3, AU, LV2 };
     FormatType m_fmt;
