@@ -1,0 +1,59 @@
+name: Build AudioGridder Windows Server
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/wine-plugin-editor-bounds
+
+permissions:
+  contents: read
+
+jobs:
+  build-server:
+    runs-on: windows-2022
+    steps:
+      - name: Check out AudioGridder (including JUCE)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Check out prebuilt Windows dependencies
+        uses: actions/checkout@v4
+        with:
+          repository: apohl79/audiogridder-deps
+          ref: main
+          path: audiogridder-deps
+
+      - name: Verify the Visual Studio 2019 toolset is installed
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.v142.x86.x64 -property installationPath
+          if (-not $vs) {
+            throw "The v142 C++ toolset required by AudioGridder's checked-in Windows dependencies is not installed on this runner."
+          }
+          Write-Host "Using Visual Studio toolset v142 from $vs"
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S . -B build-windows-x86_64 -A x64 -T v142 `
+            "-DAG_DEPS_ROOT=$env:GITHUB_WORKSPACE/audiogridder-deps/windows-x86_64" `
+            -DAG_WITH_PLUGIN=OFF `
+            -DAG_WITH_SERVER=ON `
+            -DAG_ENABLE_CODE_SIGNING=OFF `
+            -DAG_ENABLE_DEBUG_COPY_STEP=OFF
+
+      - name: Build AudioGridderServer
+        run: cmake --build build-windows-x86_64 --config RelWithDebInfo --target AudioGridderServer --parallel
+
+      - name: Upload server build
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudioGridderServer-Windows-x64
+          path: |
+            build-windows-x86_64/bin/AudioGridderServer.exe
+            build-windows-x86_64/bin/AudioGridderServer.pdb
+          if-no-files-found: error
+          retention-days: 14
