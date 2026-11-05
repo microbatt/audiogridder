@@ -24,6 +24,9 @@ jobs:
           repository: apohl79/audiogridder-deps
           ref: main
           path: audiogridder-deps
+          sparse-checkout: |
+            windows-x86_64
+          sparse-checkout-cone-mode: true
 
       - name: Verify the Visual Studio 2019 toolset is installed
         shell: pwsh
