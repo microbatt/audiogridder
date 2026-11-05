@@ -5,6 +5,9 @@ on:
   push:
     branches:
       - fix/wine-plugin-editor-bounds
+  pull_request:
+    branches:
+      - master
 
 permissions:
   contents: read
