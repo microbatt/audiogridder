@@ -18,7 +18,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Check out prebuilt Windows dependencies
+      - name: Check out prebuilt Windows x64 dependencies
         uses: actions/checkout@v4
         with:
           repository: apohl79/audiogridder-deps
@@ -28,10 +28,27 @@ jobs:
             windows-x86_64
           sparse-checkout-cone-mode: true
 
+      - name: Locate Visual Studio C++ toolset
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          if (-not (Test-Path $vswhere)) {
+            throw "Visual Studio locator not found at $vswhere"
+          }
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) {
+            throw "No Visual Studio C++ x64/x86 toolset was found."
+          }
+          $toolsets = Get-ChildItem (Join-Path $vs 'VC\Tools\MSVC') -Directory
+          if (-not ($toolsets | Where-Object { $_.Name -like '14.3*' })) {
+            throw "The current v143 MSVC toolset was not found under $vs."
+          }
+          Write-Host "Using Visual Studio at $vs with MSVC v143."
+
       - name: Configure
         shell: pwsh
         run: |
-          cmake -S . -B build-windows-x86_64 -A x64 `
+          cmake -S . -B build-windows-x86_64 -A x64 -T v143 `
             "-DAG_DEPS_ROOT=$env:GITHUB_WORKSPACE/audiogridder-deps/windows-x86_64" `
             -DBoost_COMPILER=vc142 `
             -DAG_WITH_PLUGIN=OFF `
