@@ -28,7 +28,7 @@ jobs:
       - name: Verify the Visual Studio 2019 toolset is installed
         shell: pwsh
         run: |
-          $vswhere = "${env:ProgramFiles(x86)}\\Microsoft Visual Studio\\Installer\\vswhere.exe"
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
           $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.v142.x86.x64 -property installationPath
           if (-not $vs) {
             throw "The v142 C++ toolset required by AudioGridder's checked-in Windows dependencies is not installed on this runner."
